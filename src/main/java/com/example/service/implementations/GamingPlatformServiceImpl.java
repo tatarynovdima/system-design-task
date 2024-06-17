@@ -19,12 +19,12 @@ import java.math.BigDecimal;
 
 @ApplicationScoped
 public class GamingPlatformServiceImpl implements GamingPlatformService {
-
-    private final long expirationTimeForAccessToken = 18000;
-    private final String issuer = "https://example.com";
+    private static final long EXPIRATION_TIME_FOR_ACCESS_TOKEN = 18000;
+    private static final String ISSUER = "https://example.com";
 
     @Inject
     GamingPlatformRepository gamingPlatformRepository;
+
     @Inject
     SecurityContext securityContext;
 
@@ -39,28 +39,43 @@ public class GamingPlatformServiceImpl implements GamingPlatformService {
     public Response gamingPlatformLogin(AuthDto authDto) {
         GamingPlatform gamingPlatform = gamingPlatformRepository.findByName(authDto.getLogin());
 
-        if (gamingPlatform!=null && PasswordEncoderUtil.validatePassword(gamingPlatform.getPassword(), authDto.getPassword())) {
+        if (gamingPlatform != null && PasswordEncoderUtil.validatePassword(gamingPlatform.getPassword(), authDto.getPassword())) {
             try {
-                return Response.ok(new AuthenticationResponse(TokenUtils.generateToken(gamingPlatform.getName(), gamingPlatform.getRole(), expirationTimeForAccessToken, issuer))).build();
+                String token = TokenUtils.generateToken(gamingPlatform.getName(), gamingPlatform.getRoles(), EXPIRATION_TIME_FOR_ACCESS_TOKEN, ISSUER);
+                return Response.ok(new AuthenticationResponse(token)).build();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new RuntimeException("Failed to generate token", e);
             }
         }
+
         return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid username or password").build();
     }
 
     @Override
     public Response redirectToTheGame(String userNickName, BigDecimal userBalance, Integer gameId) {
-        JWTCallerPrincipal jwtCallerPrincipal = (JWTCallerPrincipal) securityContext.getUserPrincipal();
-        String gamingPlatformName = jwtCallerPrincipal.getName();
-        GamingPlatform gamingPlatform = gamingPlatformRepository.findByName(gamingPlatformName);
-        if (gamingPlatform==null){
+        JWTCallerPrincipal jwtCallerPrincipal = getCallerPrincipal();
+        if (jwtCallerPrincipal == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
+
+        String gamingPlatformName = jwtCallerPrincipal.getName();
+        GamingPlatform gamingPlatform = gamingPlatformRepository.findByName(gamingPlatformName);
+        if (gamingPlatform == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+
         if (!checkAllowedGames(gameId, gamingPlatform)) {
             return Response.status(Response.Status.FORBIDDEN).entity("This game is not allowed").build();
         }
+
         return Response.status(Response.Status.OK).entity("User " + userNickName + " logged in").build();
+    }
+
+    private JWTCallerPrincipal getCallerPrincipal() {
+        if (securityContext != null && securityContext.getUserPrincipal() instanceof JWTCallerPrincipal) {
+            return (JWTCallerPrincipal) securityContext.getUserPrincipal();
+        }
+        return null;
     }
 
     private boolean checkAllowedGames(int gameId, GamingPlatform gamingPlatform) {

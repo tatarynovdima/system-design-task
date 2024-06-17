@@ -29,9 +29,6 @@ public class AutoDataCreatingServiceImpl implements AutoDataCreatingService {
     @Inject
     GamingPlatformRepository gamingPlatformRepository;
 
-    private void forceEagerInitialization(@Observes Startup startup){
-
-    }
     @PostConstruct
     public void createOnStartup(){
         System.out.println("Application has started!");
@@ -52,7 +49,7 @@ public class AutoDataCreatingServiceImpl implements AutoDataCreatingService {
         games.add(gameRepository.findByName("Game 1"));
         gamingPlatform.setAllowedGames(games);
         gamingPlatform.setPassword(PasswordEncoderUtil.securePassword("admin"));
-        gamingPlatform.setRole(Set.of(Role.ADMIN));
+        gamingPlatform.setRoles(Set.of(Role.ADMIN));
         gamingPlatformRepository.persist(gamingPlatform);
     }
 }

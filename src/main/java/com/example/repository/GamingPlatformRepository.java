@@ -1,21 +1,15 @@
 package com.example.repository;
 
 import com.example.entity.GamingPlatform;
+import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.transaction.Transactional;
-
-import java.util.Optional;
 
 @ApplicationScoped
-public class GamingPlatformRepository extends BaseRepository<GamingPlatform> {
-
-    @Transactional
-    public Optional<GamingPlatform> findById(Long id) {
-        return super.findById(id);
+public class GamingPlatformRepository implements PanacheRepository<GamingPlatform> {
+    public GamingPlatform findById(Long id) {
+        return find("id", id).firstResult();
     }
-
-    @Transactional
-    public Optional<GamingPlatform> findByName(String name) {
-        return super.findByName(name);
+    public GamingPlatform findByName(String name){
+        return find("name",name).firstResult();
     }
 }

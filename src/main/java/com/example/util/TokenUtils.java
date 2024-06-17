@@ -19,10 +19,13 @@ public class TokenUtils {
         PrivateKey privateKey = readPrivateKey(privateKeyLocation);
 
         JwtClaimsBuilder claimsBuilder = Jwt.claims();
+
         long currentTimeInSecs = currentTimeInSecs();
 
         Set<String> groups = new HashSet<>();
-        for (Role role : roles) groups.add(role.toString());
+        for (Role role : roles) {
+            groups.add(role.toString());
+        }
 
         claimsBuilder.issuer(issuer);
         claimsBuilder.subject(userName);
@@ -31,43 +34,44 @@ public class TokenUtils {
         claimsBuilder.groups(groups);
 
         return claimsBuilder.jws().signatureKeyId(privateKeyLocation).sign(privateKey);
-
     }
 
-    public static PrivateKey readPrivateKey(String pemResName) throws Exception {
+    private static PrivateKey readPrivateKey(String pemResName) throws Exception {
         try (InputStream contentIs = TokenUtils.class.getResourceAsStream(pemResName)) {
+            if (contentIs == null) {
+                throw new IllegalArgumentException("Private key file not found: " + pemResName);
+            }
             byte[] tmp = new byte[4096];
             int length = contentIs.read(tmp);
+            if (length <= 0) {
+                throw new IllegalArgumentException("Empty private key file: " + pemResName);
+            }
             return decodePrivateKey(new String(tmp, 0, length, "UTF-8"));
-
         }
     }
 
-    public static PrivateKey decodePrivateKey(final String pemEncoded) throws Exception {
+    private static PrivateKey decodePrivateKey(final String pemEncoded) throws Exception {
         byte[] encodedBytes = toEncodedBytes(pemEncoded);
-
         PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(encodedBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
         return kf.generatePrivate(keySpec);
     }
 
-    public static byte[] toEncodedBytes(final String pemEncoded) {
+    private static byte[] toEncodedBytes(final String pemEncoded) {
         final String normalizedPem = removeBeginEnd(pemEncoded);
         return Base64.getDecoder().decode(normalizedPem);
     }
 
-    public static String removeBeginEnd(String pem) {
-        pem = pem.replaceAll("-----BEGIN (.*)-----", "");
-        pem = pem.replaceAll("-----END (.*)----", "");
-        pem = pem.replaceAll("\r\n", "");
-        pem = pem.replaceAll("\n", "");
+    private static String removeBeginEnd(String pem) {
+        pem = pem.replaceAll("-----BEGIN (.*)-----", "")
+                .replaceAll("-----END (.*)----", "")
+                .replaceAll("\r\n", "")
+                .replaceAll("\n", "");
         return pem.trim();
     }
 
-    public static int currentTimeInSecs() {
+    private static int currentTimeInSecs() {
         long currentTimeMS = System.currentTimeMillis();
         return (int) (currentTimeMS / 1000);
     }
-
-
 }
